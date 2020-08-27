@@ -7,3 +7,4 @@ Handler for Transmission
 * Labels
 * Seed ratio
 * Data retention
+* Logging in file of actions
