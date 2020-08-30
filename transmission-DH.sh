@@ -1,3 +1,5 @@
+#!/bin/bash
+
 MAIN_FUNC (){
     INIT_FUNC
     AVAILABLE_TORRENT_FUNC 
@@ -5,14 +7,16 @@ MAIN_FUNC (){
 }
 
 INIT_FUNC () {
+    PS4='$LINENO: '
+    
     # IP:PORT
     SERVER="localhost:9091"
 
     # Define path to debug file
-    DEBUG_FILE="/path/to/file/transmission-dh_debug.txt"
-    
+	DEBUG_FILE="/path/to/file/transmission-dh_debug.txt"
+	
     # Limit ratio on torrent until removing
-    RATIO=2.0
+    RATIO=0.4
     # Limit time in hours to hold a dead torrent until removal (In case a lot of torrents in queue)
     DEAD_RETENTION=12
     # Limit time in hours before remove torrent since it was added, default: 5 days
@@ -21,9 +25,12 @@ INIT_FUNC () {
     # Available labels
     LABELS="radarr|sonarr"
     # Excluded trackers (Use with care)
-    TRACKERS=(Tracker1 Tracker1 Tracker3)
+    TRACKERS=("Tracker1" "Tracker1" "Tracker3")
     # Set to true in order to get debug data
     DEBUG_DATA=false
+	
+	# Verbose: console:0, file:1 , both:2
+	VERBOSE=2
     #-------------------------------------------------------------------
     
     # Create info arrays
@@ -32,9 +39,26 @@ INIT_FUNC () {
     INFO_TORRENT_ARRAY=()
 }
 
+LOGGER_FUNC () {
+	format=$1
+	message=("${@:2}")
+
+	if [[ $VERBOSE == 0 ]]; then
+		printf "$format" "${message[@]}"
+	fi
+	if [[ $VERBOSE == 1 ]]; then
+		printf "$format" "${message[@]}" >> $DEBUG_FILE
+	fi
+	if [[ $VERBOSE == 2 ]]; then
+		printf "$format" "${message[@]}"
+		printf "$format" "${message[@]}" >> $DEBUG_FILE
+	fi
+}
+
 
 AVAILABLE_TORRENT_FUNC (){
-    echo -e "\n\n[INFO] Transmission data handler" `date +"%Y-%m-%d %T"`>> $DEBUG_FILE
+
+    LOGGER_FUNC "%s" "$(echo -e "\n\n[INFO] Transmission data handler" `date +"%Y-%m-%d %T"`)"
     
     # Get an ID list of available torrents on the server
     TORRENT_LIST=$(transmission-remote $SERVER --list | sed -e '1d' -e '$d' | awk '{print $1}' | sed -e 's/[^0-9]*//g')
@@ -52,7 +76,7 @@ AVAILABLE_TORRENT_FUNC (){
         case !"${torrent_label}" in LABELS) continue;; esac
         
         # Check if tracker exists in excluded trackers
-        if echo "$torrent_trackers" | grep -q "$TRACKERS"; then
+        if echo "${torrent_trackers}" | grep -q "$TRACKERS"; then
             continue
         fi
     
@@ -66,10 +90,6 @@ AVAILABLE_TORRENT_FUNC (){
         # Get from added date
         prev=$(date --date="$(echo "$torrent_info" | grep "Date added: *" | sed 's/Date added\:\s//i' | awk '{$1=$1};1')" +"%s")
         torrent_date_added=$(( ($today_date - $prev )/(60*60) ))
-        
-        #torrent_date_added=$(( ($(expr $(date '+%s')) - $(date -d "$(printf '%s\n' "$torrent_date_added" | awk '{
-        #    printf "%04d-%02d-%02d %s\n", $5, \
-        #    (index("JanFebMarAprMayJunJulAugSepOctNovDec",$2)+2)/3,$3, $4}')" +"%s")) / 3600 )) 
         
         if [[ "$torrent_ratio" == "None" ]]; then
            torrent_ratio="0"
@@ -109,17 +129,18 @@ AVAILABLE_TORRENT_FUNC (){
 REMOVE_FUNC (){
     #Debug data
     if [[ $DEBUG_DATA == "true" ]]; then
-        printf "\n%-5s %-8s %-12s %-12s %-8s %-5s %-10s %-120s" "${INFO_TORRENT_ARRAY[@]}" >> $DEBUG_FILE
-        printf "\n%-s" "${DEBUG_TORRENT_ARRAY[@]}"  >> $DEBUG_FILE
-    fi
-    #Remove torrents
-    printf "\n%-s" "${REMOVE_TORRENT_ARRAY[@]}" >> $DEBUG_FILE
+		LOGGER_FUNC "\n%-5s %-8s %-12s %-12s %-8s %-5s %-10s %-120s" "${INFO_TORRENT_ARRAY[@]}"
+		LOGGER_FUNC "\n%s" "${DEBUG_TORRENT_ARRAY[@]}"
+	fi
+	
     for each in "${REMOVE_TORRENT_ARRAY[@]}"
     do
-        transmission-remote $SERVER --torrent "$(echo $each | awk '$2 ~ /ID:/ { print  $3}')" --remove-and-delete
+		LOGGER_FUNC "\n%s" "$each"
+		transmission-remote "$SERVER" --torrent "$(echo $each | awk '$2 ~ /ID:/ { print  $3}')" --remove-and-delete > /dev/null 2>&1
     done
     # Dummy to get a new line
-    printf "\n"
+    LOGGER_FUNC "\n" ""
 }
 # Call main function
 MAIN_FUNC
+
