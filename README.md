@@ -1,10 +1,15 @@
 # Transmission-DH
 Handler for Transmission
 
-## Features
+# Setup
 
-* Specify trackers to keep
-* Labels
-* Seed ratio
-* Data retention
-* Logging in file of actions
+* Configure the `CONFIG_SETTINGS` function in `transmission-DH.sh`
+* Run the program with `bash transmission-DH.sh`
+
+## Features
+* Specify trackers to ignore
+* Specify acceptable Labels
+* Max seed ratio
+* Data retention limit for dead torrents and keep time since added
+* Debug mode
+* Verbose (logging)
