@@ -1,6 +1,37 @@
 #!/bin/bash
 
+CONFIG_SETTINGS () {
+    # IP:PORT
+    SERVER="localhost:9091"
+
+    # Define path to debug file
+    DEBUG_FILE="/path/to/file/transmission-dh_debug.txt"
+	
+    # Limit ratio on torrent until removing
+    RATIO=2.0
+    
+    # Limit time in hours to hold a dead torrent until removal (In case a lot of torrents in queue)
+    DEAD_RETENTION=12
+    
+    # Limit time in hours before remove torrent since it was added, default: 5 days
+    ADDED_RETENTION=120 
+
+    # Available labels
+    LABELS="radarr|sonarr"
+    
+    # Excluded trackers (Use with care)
+    TRACKERS=(Tracker1 Tracker1 Tracker3)
+    
+    # Set to true in order to get debug data
+    DEBUG_DATA=false
+	
+    # Verbose: console:0, file:1 , both:2
+    VERBOSE=2
+
+}
+
 MAIN_FUNC (){
+    CONFIG_SETTINGS
     INIT_FUNC
     AVAILABLE_TORRENT_FUNC 
     REMOVE_FUNC
@@ -8,30 +39,6 @@ MAIN_FUNC (){
 
 INIT_FUNC () {
     PS4='$LINENO: '
-    
-    # IP:PORT
-    SERVER="localhost:9091"
-
-    # Define path to debug file
-	DEBUG_FILE="/path/to/file/transmission-dh_debug.txt"
-	
-    # Limit ratio on torrent until removing
-    RATIO=0.4
-    # Limit time in hours to hold a dead torrent until removal (In case a lot of torrents in queue)
-    DEAD_RETENTION=12
-    # Limit time in hours before remove torrent since it was added, default: 5 days
-    ADDED_RETENTION=120 
-
-    # Available labels
-    LABELS="radarr|sonarr"
-    # Excluded trackers (Use with care)
-    TRACKERS=("Tracker1" "Tracker1" "Tracker3")
-    # Set to true in order to get debug data
-    DEBUG_DATA=false
-	
-	# Verbose: console:0, file:1 , both:2
-	VERBOSE=2
-    #-------------------------------------------------------------------
     
     # Create info arrays
     DEBUG_TORRENT_ARRAY=()
