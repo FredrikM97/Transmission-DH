@@ -7,6 +7,7 @@ Handler for Transmission
 * Run the program with `bash transmission-DH.sh`
 
 ## Features
+* Supports flags such as authentication (-n user:pass)
 * Specify trackers to ignore
 * Specify acceptable Labels
 * Max seed ratio

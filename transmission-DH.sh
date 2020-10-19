@@ -4,6 +4,9 @@ CONFIG_SETTINGS () {
     # IP:PORT
     SERVER="localhost:9091"
 
+    # Flags to append to transmission-remote such as authentication (-n user:pass)
+    FLAGS=""
+
     # Define path to debug file
     DEBUG_FILE="/path/to/file/transmission-dh_debug.txt"
 	
@@ -68,14 +71,14 @@ AVAILABLE_TORRENT_FUNC (){
     LOGGER_FUNC "%s" "$(echo -e "\n\n[INFO] Transmission data handler" `date +"%Y-%m-%d %T"`)"
     
     # Get an ID list of available torrents on the server
-    TORRENT_LIST=$(transmission-remote $SERVER --list | sed -e '1d' -e '$d' | awk '{print $1}' | sed -e 's/[^0-9]*//g')
+    TORRENT_LIST=$(transmission-remote $SERVER $FLAGS --list | sed -e '1d' -e '$d' | awk '{print $1}' | sed -e 's/[^0-9]*//g')
     INFO_TORRENT_ARRAY+=( "ID" "Status" "State" "Availability" "Label" "Ratio" "Added [H]" "Name")
     today_date=$(date +%s)
     # Loop through each torrent
     for torrent_id in $TORRENT_LIST
     do
         # Meta data - Extract data from $torrent_info
-        torrent_info=$(transmission-remote $SERVER --torrent $torrent_id --info)
+        torrent_info=$(transmission-remote $SERVER $FLAGS --torrent $torrent_id --info)
         torrent_label=$(basename $(echo "$torrent_info" | grep "Location: *" | sed 's/Location\:\s//i' | awk '{$1=$1};1'))
         torrent_trackers=$(echo "$torrent_info" | grep "Magnet: *" | sed 's/Magnet\:\s//i' | awk '{$1=$1};1')
     
@@ -143,7 +146,7 @@ REMOVE_FUNC (){
     for each in "${REMOVE_TORRENT_ARRAY[@]}"
     do
 		LOGGER_FUNC "\n%s" "$each"
-		transmission-remote "$SERVER" --torrent "$(echo $each | awk '$2 ~ /ID:/ { print  $3}')" --remove-and-delete > /dev/null 2>&1
+		transmission-remote "$SERVER" "$FLAGS" --torrent "$(echo $each | awk '$2 ~ /ID:/ { print  $3}')" --remove-and-delete > /dev/null 2>&1
     done
     # Dummy to get a new line
     LOGGER_FUNC "\n" ""
