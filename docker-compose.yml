@@ -1,0 +1,40 @@
+services:
+  transmission:
+    image: linuxserver/transmission:latest
+    container_name: transmission
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: UTC
+    ports:
+      - "9091:9091"
+      - "6881:6881/udp"
+      - "6881:6881/tcp"
+    volumes:
+      - ./data/transmission/config:/config
+      - ./data/transmission/downloads:/downloads
+      - ./data/transmission/watch:/watch
+    logging:
+      driver: none
+    restart: unless-stopped
+
+  transmission-dh:
+    build: .
+    container_name: transmission-dh
+    depends_on:
+      - transmission
+    environment:
+      TRANSMISSION_URL: http://transmission:9091/transmission/rpc
+      #TRANSMISSION_AUTH: user:password
+      
+      ALLOWED_LABELS: '["radarr", "sonarr"]'
+      EXCLUDED_TRACKERS: '[]'
+      MAX_RATIO: 2.0
+      DEAD_RETENTION_HOURS: 12
+      MAX_AGE_HOURS: 120
+      
+      LOG_LEVEL: debug
+      DRY_RUN: true
+      
+      SCHEDULE: "* * * * *"
+    restart: "no"

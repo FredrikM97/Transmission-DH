@@ -1,0 +1,26 @@
+{
+  "name": "transmission-dh",
+  "version": "2.0.0",
+  "description": "Transmission data handler – automatically removes torrents based on ratio, retention and dead-torrent rules",
+  "type": "module",
+  "main": "dist/bundle.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/bundle.js --external:pino --external:pino-pretty --external:node-cron",
+    "start": "node dist/bundle.js",
+    "dev": "tsx src/index.ts",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "node-cron": "^3.0.3",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/node-cron": "^3.0.11",
+    "esbuild": "^0.21.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
