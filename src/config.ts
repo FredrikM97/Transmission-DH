@@ -1,9 +1,10 @@
-export type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace";
+const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace"] as const;
+export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export type Auth = { readonly username: string; readonly password: string };
 
 export type Config = {
-  readonly transmissionUrl: URL;
+  readonly transmissionUrl: string;
   readonly transmissionAuth: Auth | undefined;
   readonly allowedLabels: readonly string[];
   readonly excludedTrackers: readonly string[];
@@ -11,73 +12,28 @@ export type Config = {
   readonly deadRetentionHours: number;
   readonly maxAgeHours: number;
   readonly logLevel: LogLevel;
-  readonly logPretty: boolean;
   readonly dryRun: boolean;
   readonly schedule: string | undefined;
 };
 
-// Parsers
-const parseUrl = (value?: string): URL => {
-  try {
-    return new URL(value ?? "http://localhost:9091/transmission/rpc");
-  } catch {
-    throw new Error(`Invalid URL: ${value}`);
-  }
-};
-
-const parseAuth = (value?: string): Auth | undefined => {
-  if (!value) return undefined;
-  const [username, ...rest] = value.split(":");
-  if (!username) throw new Error("Invalid auth: missing username");
-  return { username, password: rest.join(":") };
-};
-
-const parseList = (value?: string): readonly string[] => {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) {
-      return Object.freeze(parsed.map((s) => String(s).trim().toLowerCase()).filter(Boolean));
-    }
-  } catch {
-    // Not JSON, parse as space/comma-separated
-  }
-  const sep = value.includes(",") ? "," : " ";
-  return Object.freeze(value.split(sep).map((s) => s.trim().toLowerCase()).filter(Boolean));
-};
-
-const parseNum = (value?: string, fallback = 0): number => {
-  const n = value ? Number(value) : fallback;
-  if (isNaN(n) || n <= 0) throw new Error(`Invalid number: ${value}`);
-  return n;
-};
-
-const parseBool = (value?: string): boolean => {
-  if (!value) return false;
-  if (value === "true" || value === "1") return true;
-  if (value === "false" || value === "0") return false;
-  throw new Error(`Invalid boolean: ${value}`);
-};
-
-const parseLevel = (value?: string): LogLevel => {
-  if (!value) return "info";
-  const levels = ["fatal", "error", "warn", "info", "debug", "trace"] as const;
-  if (!levels.includes(value as LogLevel)) throw new Error(`Invalid log level: ${value}`);
-  return value as LogLevel;
-};
-
 export function loadConfig(): Config {
+  const e = process.env;
   return Object.freeze({
-    transmissionUrl: parseUrl(process.env.TRANSMISSION_URL),
-    transmissionAuth: parseAuth(process.env.TRANSMISSION_AUTH),
-    allowedLabels: parseList(process.env.ALLOWED_LABELS) || ["radarr", "sonarr"],
-    excludedTrackers: parseList(process.env.EXCLUDED_TRACKERS),
-    maxRatio: parseNum(process.env.MAX_RATIO, 2.0),
-    deadRetentionHours: parseNum(process.env.DEAD_RETENTION_HOURS, 12),
-    maxAgeHours: parseNum(process.env.MAX_AGE_HOURS, 120),
-    logLevel: parseLevel(process.env.LOG_LEVEL),
-    logPretty: parseBool(process.env.LOG_PRETTY),
-    dryRun: parseBool(process.env.DRY_RUN),
-    schedule: process.env.SCHEDULE,
+    transmissionUrl: e.TRANSMISSION_URL!,
+    transmissionAuth: e.TRANSMISSION_AUTH ? parseAuth(e.TRANSMISSION_AUTH) : undefined,
+    allowedLabels: Object.freeze(e.ALLOWED_LABELS!.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean)),
+    excludedTrackers: Object.freeze(e.EXCLUDED_TRACKERS!.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean)),
+    maxRatio: +e.MAX_RATIO!,
+    deadRetentionHours: +e.DEAD_RETENTION_HOURS!,
+    maxAgeHours: +e.MAX_AGE_HOURS!,
+    logLevel: e.LOG_LEVEL as LogLevel,
+    dryRun: e.DRY_RUN === "true" || e.DRY_RUN === "1",
+    schedule: e.SCHEDULE || undefined,
   });
+}
+
+function parseAuth(value: string): Auth {
+  const colonIndex = value.indexOf(":");
+  if (colonIndex === -1) throw new Error("TRANSMISSION_AUTH must be in format: username:password");
+  return { username: value.substring(0, colonIndex), password: value.substring(colonIndex + 1) };
 }

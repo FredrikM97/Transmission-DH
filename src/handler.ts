@@ -29,6 +29,7 @@ export interface RemovalCandidate {
 
 export class Handler {
   private client: TransmissionClient;
+  private isFirstRun = true;
 
   constructor(
     client: TransmissionClient,
@@ -51,6 +52,14 @@ export class Handler {
     }
 
     const hydrated = torrents.map((t) => this.hydrate(t));
+    
+    // Display all torrents summary only on first run
+    if (this.isFirstRun) {
+      this.displayTorrentsSummary(hydrated);
+      this.logger.info("───────────────────────────────────────────────────────────────────────────────");
+      this.isFirstRun = false;
+    }
+    
     const byLabel = hydrated.filter((t) => this.isAllowedLabel(t));
     const eligible = byLabel.filter((t) => !this.hasExcludedTracker(t));
 
@@ -63,9 +72,10 @@ export class Handler {
       return;
     }
 
+    this.logger.info("───────────────────────────────────────────────────────────────────────────────");
     this.logger.info(`Found ${candidates.length} candidate(s) for removal:`);
     for (const c of candidates) {
-      this.logger.info(`  [${c.reason.toUpperCase()}] ${c.torrent.name}`);
+      this.logger.info(`[${c.reason.toUpperCase()}] ${c.torrent.name}`);
     }
 
     await this.performRemoval(candidates.map((c) => c.torrent.id));
@@ -76,18 +86,14 @@ export class Handler {
   }
 
 
-  /** Removes torrents by ID, or logs a dry-run message if configured. */
   private async performRemoval(ids: number[]): Promise<void> {
     if (this.config.dryRun) {
-      this.logger.warn(
-        { count: ids.length },
-        "DRY_RUN enabled – skipping removal"
-      );
+      this.logger.warn(`DRY_RUN enabled – skipping removal of ${ids.length} torrent(s)`);
       return;
     }
 
     await this.client.removeTorrents(ids, true);
-    this.logger.info({ removed: ids.length }, "Torrents removed");
+    this.logger.info(`Torrents removed: ${ids.length}`);
   }
 
   private formatRemovalReason(candidate: RemovalCandidate): string {
@@ -185,5 +191,42 @@ export class Handler {
       torrent,
       reason: RemovalReason.Ttl,
     };
+  }
+
+  private displayTorrentsSummary(torrents: Torrent[]): void {
+    if (torrents.length === 0) {
+      return;
+    }
+
+    const maxNameLength = 60;
+    const rows = torrents.map((t) => ({
+      status: t.percentDone === 100 ? "Done" : "Active",
+      ratio: t.uploadRatio === -1 ? "N/A" : t.uploadRatio.toFixed(2),
+      age: `${Math.round(t.ageHours)}h`,
+      label: t.label,
+      name: t.name.length > maxNameLength ? t.name.substring(0, maxNameLength - 3) + "..." : t.name,
+    }));
+
+    const statusWidth = Math.max(6, ...rows.map((r) => r.status.length));
+    const ratioWidth = Math.max(5, ...rows.map((r) => r.ratio.length));
+    const ageWidth = Math.max(3, ...rows.map((r) => r.age.length));
+    const labelWidth = Math.max(5, ...rows.map((r) => r.label.length));
+
+    const headerStatus = "Status".padEnd(statusWidth);
+    const headerRatio = "Ratio".padStart(ratioWidth);
+    const headerAge = "Age".padStart(ageWidth);
+    const headerLabel = "Label".padEnd(labelWidth);
+    this.logger.info(`${headerStatus}  ${headerRatio}  ${headerAge}  ${headerLabel}  Name`);
+    
+    const totalWidth = statusWidth + ratioWidth + ageWidth + labelWidth + 50;
+    this.logger.info(`${"-".repeat(totalWidth)}`);
+
+    for (const row of rows) {
+      const colStatus = row.status.padEnd(statusWidth);
+      const colRatio = row.ratio.padStart(ratioWidth);
+      const colAge = row.age.padStart(ageWidth);
+      const colLabel = row.label.padEnd(labelWidth);
+      this.logger.info(`${colStatus}  ${colRatio}  ${colAge}  ${colLabel}  ${row.name}`);
+    }
   }
 }
