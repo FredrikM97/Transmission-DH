@@ -1,0 +1,20 @@
+services:
+
+  transmission-dh:
+    build: .
+    container_name: transmission-dh
+    environment:
+      TRANSMISSION_URL: http://192.168.1.xxx:9091/transmission/rpc
+      #TRANSMISSION_AUTH: user:password
+      
+      ALLOWED_LABELS: "tv,movie"
+      EXCLUDED_TRACKERS: ""
+      MAX_RATIO: 2.0
+      DEAD_RETENTION_HOURS: 12
+      MAX_AGE_HOURS: 120
+      
+      LOG_LEVEL: debug
+      DRY_RUN: false
+      
+      SCHEDULE: "* * * * *"
+    restart: "no"
